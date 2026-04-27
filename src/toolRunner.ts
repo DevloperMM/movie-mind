@@ -1,10 +1,11 @@
-import type OpenAI from "openai"
+import type OpenAI from 'openai'
 import {
   generateImage,
   generateImageToolDefinition,
-} from "./tools/generateImage"
-import { reddit, redditToolDefinition } from "./tools/reddit"
-import { dadJoke, dadJokeToolDefinition } from "./tools/dadJoke"
+} from './tools/generateImage'
+import { reddit, redditToolDefinition } from './tools/reddit'
+import { dadJoke, dadJokeToolDefinition } from './tools/dadJoke'
+import { movieSearch, movieSearchDefinition } from './tools/movieSearch'
 
 export const runTool = async (
   toolCall: OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall,
@@ -12,7 +13,7 @@ export const runTool = async (
 ) => {
   const input = {
     userMessage,
-    toolArgs: JSON.parse(toolCall.function.arguments ?? "{}"),
+    toolArgs: JSON.parse(toolCall.function.arguments ?? '{}'),
   }
 
   switch (toolCall.function.name) {
@@ -24,6 +25,9 @@ export const runTool = async (
 
     case dadJokeToolDefinition.name:
       return dadJoke(input)
+
+    case movieSearchDefinition.name:
+      return movieSearch(input)
 
     default:
       return `Never run this tool: ${toolCall.function.name} again, or else!`
