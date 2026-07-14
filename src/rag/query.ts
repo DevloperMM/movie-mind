@@ -1,8 +1,11 @@
 import 'dotenv/config'
 
-import { Index as UpstashIndex } from '@upstash/vector'
+import { FusionAlgorithm, Index as UpstashIndex } from '@upstash/vector'
 
-const index = new UpstashIndex({})
+const index = new UpstashIndex({
+  url: process.env.UPSTASH_VECTOR_REST_URL,
+  token: process.env.UPSTASH_VECTOR_REST_TOKEN,
+})
 
 /**
  * Namespaces provide a way to logically separate data within the same index.
@@ -42,63 +45,64 @@ const index = new UpstashIndex({})
 // type PartialMovie = Partial<MovieMetadata>
 // This allows: const movie: PartialMovie = { title: "Inception" } // year and genre are optional
 
-export const queryMovies = async ({ args }: { args: Record<string, any> }) => {
-  console.log(args)
+export interface QueryMoviesArgs {
+  query: string
+  filter?: Record<string, any>
+  sort?: { field: string; order: 'asc' | 'desc' }
+}
 
-  const { query, filters = {}, sort_by, sort_order = 'desc', limit = 5 } = args
+export const queryMovies = async ({ args }: { args: QueryMoviesArgs }) => {
+  const { query, filter, sort } = args
 
-  const conditions: string[] = []
-  if (filters) {
-    if (filters.genre) conditions.push(`genre GLOB '*${filters.genre}*'`)
-    if (filters.director) conditions.push(`director = '${filters.director}'`)
-    if (filters.year) conditions.push(`year = '${filters.year}'`)
-    if (filters.actors) conditions.push(`actors GLOB '*${filters.actors}*'`)
+  // 1. Build Upstash SQL-like Metadata Filter String safely for numbers
+  let filterString = ''
+  if (filter && Object.keys(filter).length > 0) {
+    const conditions: string[] = []
+
+    for (const [key, value] of Object.entries(filter)) {
+      if (value === null || value === undefined) continue
+
+      if (typeof value === 'object') {
+        for (const [operator, val] of Object.entries(value)) {
+          if (val === null || val === undefined) continue
+          const opMap: Record<string, string> = {
+            gte: '>=',
+            gt: '>',
+            lte: '<=',
+            lt: '<',
+            eq: '=',
+          }
+          const resolvedOp = opMap[operator] || '='
+          conditions.push(`${key} ${resolvedOp} ${val}`)
+        }
+      } else {
+        conditions.push(`${key} = ${value}`)
+      }
+    }
+
+    filterString = conditions.join(' AND ')
   }
 
-  // Build filter string if filters provided
-  const filterString =
-    conditions.length > 0 ? conditions.join(' AND ') : undefined
-
-  console.log(filterString)
-
-  const results = await index.query({
-    data: query,
-    topK: limit,
-    // filter: filterString,
-    includeData: true,
+  // 2. Query using Hybrid Search
+  // Fusing dense vectors and sparse text vectors lets keywords like "Nolan" and "sci-fi" pull the correct documents instantly.
+  const response = await index.query({
+    data: query || '*',
+    topK: 50,
     includeMetadata: true,
+    includeData: true,
+    fusionAlgorithm: FusionAlgorithm.RRF,
+    filter: filterString || undefined,
   })
 
-  let sorted = results
-
-  if (sort_by) {
-    sorted = [...results].sort((a, b) => {
-      const aVal = (a.metadata?.[sort_by] ?? 0) as number
-      const bVal = (b.metadata?.[sort_by] ?? 0) as number
-      return sort_order === 'desc' ? bVal - aVal : aVal - bVal
+  // 3. Post-Retrieval Sorting
+  let finalResults = [...response]
+  if (sort && sort.field) {
+    finalResults.sort((a, b) => {
+      const fieldA = (a.metadata as any)?.[sort.field] ?? 0
+      const fieldB = (b.metadata as any)?.[sort.field] ?? 0
+      return sort.order === 'desc' ? fieldB - fieldA : fieldA - fieldB
     })
   }
 
-  /**
-   * TODO:(1) - Query fining and filter fining; see args for various prompts
-   * TODO:(2) - refer below
-   *
-   * Current issue-
-   * Sorting happens after semantic topK retrieval, so true top-rated/top-grossing
-   * results may never enter the candidate set.
-   *
-   * Next-
-   * [ ] Move sorting into DB (ORDER BY ...)
-   * [ ] Fetch larger sorted candidate pool (limit * N)
-   * [ ] Run semantic search only over those candidates
-   * [ ] Return semantic topK from ranked pool
-   *
-   * Later-
-   * [ ] Consider hybrid score = semantic relevance + sort metric
-   *
-   * Fix-
-   * [ ] Replace metadata?.sort_by with metadata?.[sort_by]
-   */
-
-  return sorted.slice(0, limit)
+  return finalResults.slice(0, 5)
 }

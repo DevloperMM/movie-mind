@@ -29,7 +29,9 @@ export async function indexMovieData() {
   // Index each movie
   for (const movie of movies as any[]) {
     spinner.text = `Indexing movie: ${movie.Title}`
-    const text = `${movie.Title} is a ${movie.Genre} film about ${movie.Description} from ${movie.Year}, directed by ${movie.Director}, starring ${movie.Actors}.`
+
+    // Enriching the document context to ensure high BM25 keyword match overlap
+    const text = `${movie.Title} is a ${movie.Genre} film about ${movie.Description} released in ${movie.Year}, directed by ${movie.Director}, starring ${movie.Actors}.`
 
     try {
       await index.upsert({
@@ -37,7 +39,7 @@ export async function indexMovieData() {
         data: text, // Text will be automatically embedded
         metadata: {
           title: movie.Title,
-          year: movie.Year,
+          year: Number(movie.Year),
           genre: movie.Genre,
           director: movie.Director,
           actors: movie.Actors,
