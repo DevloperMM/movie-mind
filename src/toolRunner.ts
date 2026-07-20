@@ -4,7 +4,7 @@ import {
   generateImageToolDefinition,
 } from './tools/generateImage'
 import { reddit, redditToolDefinition } from './tools/reddit'
-import { dadJoke, dadJokeToolDefinition } from './tools/dadJoke'
+import { factz, factzToolDefinition } from './tools/factz'
 import { movieSearch, movieSearchDefinition } from './tools/movieSearch'
 
 export const runTool = async (
@@ -23,8 +23,8 @@ export const runTool = async (
     case redditToolDefinition.name:
       return reddit(input)
 
-    case dadJokeToolDefinition.name:
-      return dadJoke(input)
+    case factzToolDefinition.name:
+      return factz(input)
 
     case movieSearchDefinition.name:
       return movieSearch(input)

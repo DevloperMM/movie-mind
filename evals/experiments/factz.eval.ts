@@ -1,7 +1,7 @@
 import 'dotenv/config'
 
 import { runLLM } from '../../src/llm'
-import { dadJokeToolDefinition } from '../../src/tools/dadJoke'
+import { factzToolDefinition } from '../../src/tools/factz'
 import { runEval } from '../evalTools'
 import { ToolCallMatch } from '../scorers'
 
@@ -17,16 +17,20 @@ const createToolCallMessage = (toolName: string) => ({
   ],
 })
 
-runEval('dadJoke', {
+runEval('factz', {
   task: (input) =>
     runLLM({
       messages: [{ role: 'user', content: input }],
-      tools: [dadJokeToolDefinition],
+      tools: [factzToolDefinition],
     }),
   data: [
     {
-      input: 'Tell me a funny dad joke',
-      expected: createToolCallMessage(dadJokeToolDefinition.name),
+      input: 'I want to test my knowledge about movies',
+      expected: createToolCallMessage(factzToolDefinition.name),
+    },
+    {
+      input: 'Give me a movie trivia quiz',
+      expected: createToolCallMessage(factzToolDefinition.name),
     },
   ],
   scorers: [ToolCallMatch],

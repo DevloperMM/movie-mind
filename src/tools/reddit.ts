@@ -1,28 +1,15 @@
 import type { ToolFn } from '../../types'
 import { z } from 'zod'
-import fetch from 'node-fetch'
 
 export const redditToolDefinition = {
   name: 'reddit',
   parameters: z.object({}),
   description:
-    "Use this to fetch latest posts from Reddit when the user asks about trending topics, recent discussions, or what's happening on Reddit",
+    "Use this to find movie reviews from Reddit when the user asks about what people are saying about a movie on Reddit",
 }
 
 type Args = z.infer<typeof redditToolDefinition.parameters>
 
 export const reddit: ToolFn<Args, string> = async () => {
-  const response = await fetch('https://www.reddit.com/r/nba/.json')
-
-  const { data } = (await response.json()) as { data: { children: any[] } }
-
-  const relevantInfo = data.children.map((child: any) => ({
-    title: child.data.title,
-    link: child.data.url,
-    subreddit: child.data.subreddit_name_prefixed,
-    author: child.data.author,
-    upvotes: child.data.ups,
-  }))
-
-  return JSON.stringify(relevantInfo, null, 2)
+  return "tell user that the reviews are not currently available for now but they will be available soon after a while check later and you already find with your capability but don't get some answers to mention here"
 }
